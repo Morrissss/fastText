@@ -40,12 +40,15 @@ Model::Model(
     bool normalizeGradient)
     : wi_(wi), wo_(wo), loss_(loss), normalizeGradient_(normalizeGradient) {}
 
+/**
+ * state.hidden = avg(input_) for all input
+ */
 void Model::computeHidden(const std::vector<int32_t>& input, State& state)
     const {
   Vector& hidden = state.hidden;
   hidden.zero();
   for (auto it = input.cbegin(); it != input.cend(); ++it) {
-    hidden.addRow(*wi_, *it);
+    hidden.addRow(*wi_, *it); // hidden += wi_[*it]
   }
   hidden.mul(1.0 / input.size());
 }
@@ -68,8 +71,8 @@ void Model::predict(
 }
 
 void Model::update(
-    const std::vector<int32_t>& input,
-    const std::vector<int32_t>& targets,
+    const std::vector<int32_t>& input, // sup: subword and consecutive words | cbow: subwords of contexts | sg: subwords of current word
+    const std::vector<int32_t>& targets, // sup: one random label | cbow: current word | sg: one of the context word
     int32_t targetIndex,
     real lr,
     State& state) {
@@ -80,14 +83,14 @@ void Model::update(
 
   Vector& grad = state.grad;
   grad.zero();
-  real lossValue = loss_->forward(targets, targetIndex, state, lr, true);
+  real lossValue = loss_->forward(targets, targetIndex, state, lr, true); // grad += alpha * output_[target]
   state.incrementNExamples(lossValue);
 
   if (normalizeGradient_) {
     grad.mul(1.0 / input.size());
   }
   for (auto it = input.cbegin(); it != input.cend(); ++it) {
-    wi_->addVectorToRow(grad, *it, 1.0);
+    wi_->addVectorToRow(grad, *it, 1.0); // input_[i] += grad for all input
   }
 }
 

@@ -56,13 +56,13 @@ int32_t Dictionary::find(const std::string& w, uint32_t h) const {
 }
 
 void Dictionary::add(const std::string& w) {
-  int32_t h = find(w);
+  int32_t h = find(w); // linear-probing closed-hashing
   ntokens_++;
   if (word2int_[h] == -1) {
     entry e;
     e.word = w;
     e.count = 1;
-    e.type = getType(w);
+    e.type = getType(w); // controlled by __label__
     words_.push_back(e);
     word2int_[h] = size_++;
   } else {
@@ -175,17 +175,19 @@ void Dictionary::computeSubwords(
     std::vector<std::string>* substrings) const {
   for (size_t i = 0; i < word.size(); i++) {
     std::string ngram;
-    if ((word[i] & 0xC0) == 0x80) {
+    if ((word[i] & 0xC0) == 0x80) { // to include subsequent bytes in utf8
       continue;
     }
     for (size_t j = i, n = 1; j < word.size() && n <= args_->maxn; n++) {
+      // one utf8 character
       ngram.push_back(word[j++]);
       while (j < word.size() && (word[j] & 0xC0) == 0x80) {
         ngram.push_back(word[j++]);
       }
+      
       if (n >= args_->minn && !(n == 1 && (i == 0 || j == word.size()))) {
         int32_t h = hash(ngram) % args_->bucket;
-        pushHash(ngrams, h);
+        pushHash(ngrams, h); // pruned index of ngram's hashcode
         if (substrings) {
           substrings->push_back(ngram);
         }
@@ -200,7 +202,7 @@ void Dictionary::initNgrams() {
     words_[i].subwords.clear();
     words_[i].subwords.push_back(i);
     if (words_[i].word != EOS) {
-      computeSubwords(word, words_[i].subwords);
+      computeSubwords(word, words_[i].subwords); // idx of words & nwords_ + pruned hash(ngrams)
     }
   }
 }
@@ -231,11 +233,17 @@ bool Dictionary::readWord(std::istream& in, std::string& word) const {
   return !word.empty();
 }
 
+/*
+ * update word2int_ and words_
+ * clear long-tail words
+ * calculate word discard table
+ * calculate ngrams, pruned the index and add to entry::subwords
+ */
 void Dictionary::readFromFile(std::istream& in) {
   std::string word;
   int64_t minThreshold = 1;
   while (readWord(in, word)) {
-    add(word);
+    add(word); // update word2int_ and words_
     if (ntokens_ % 1000000 == 0 && args_->verbose > 1) {
       std::cerr << "\rRead " << ntokens_ / 1000000 << "M words" << std::flush;
     }
@@ -246,7 +254,7 @@ void Dictionary::readFromFile(std::istream& in) {
   }
   threshold(args_->minCount, args_->minCountLabel);
   initTableDiscard();
-  initNgrams();
+  initNgrams();  // put the word itself and ngrams into entry::subwords (word indices and ngram hashcode)
   if (args_->verbose > 0) {
     std::cerr << "\rRead " << ntokens_ / 1000000 << "M words" << std::endl;
     std::cerr << "Number of words:  " << nwords_ << std::endl;
@@ -258,6 +266,9 @@ void Dictionary::readFromFile(std::istream& in) {
   }
 }
 
+/**
+ * clear long-tail words and labels, and sort words_ s.t. words is front of labels
+ */
 void Dictionary::threshold(int64_t t, int64_t tl) {
   sort(words_.begin(), words_.end(), [](const entry& e1, const entry& e2) {
     if (e1.type != e2.type) {
@@ -377,7 +388,7 @@ int32_t Dictionary::getLine(
 
 int32_t Dictionary::getLine(
     std::istream& in,
-    std::vector<int32_t>& words,
+    std::vector<int32_t>& words, // subword hashes + hashes of consecutive words
     std::vector<int32_t>& labels) const {
   std::vector<int32_t> word_hashes;
   std::string token;
@@ -393,16 +404,16 @@ int32_t Dictionary::getLine(
 
     ntokens++;
     if (type == entry_type::word) {
-      addSubwords(words, token, wid);
+      addSubwords(words, token, wid); // fetch subword hash from entry::subwords, or calculate it for unknown vocabulary
       word_hashes.push_back(h);
     } else if (type == entry_type::label && wid >= 0) {
-      labels.push_back(wid - nwords_);
+      labels.push_back(wid - nwords_); // words comes first after Dictionary::threshold
     }
     if (token == EOS) {
       break;
     }
   }
-  addWordNgrams(words, word_hashes, args_->wordNgrams);
+  addWordNgrams(words, word_hashes, args_->wordNgrams); // add hashes of each 2 to wordNgrams consecutive words
   return ntokens;
 }
 

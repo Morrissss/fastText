@@ -86,6 +86,9 @@ int32_t FastText::getSubwordId(const std::string& subword) const {
   return dict_->nwords() + h;
 }
 
+/**
+ * all ngrams averaged
+ */
 void FastText::getWordVector(Vector& vec, const std::string& word) const {
   const std::vector<int32_t>& ngrams = dict_->getSubwords(word);
   vec.zero();
@@ -305,6 +308,9 @@ std::vector<int32_t> FastText::selectEmbeddings(int32_t cutoff) const {
   return idx;
 }
 
+/**
+ * 
+ */
 void FastText::quantize(const Args& qargs) {
   if (args_->model != model_name::sup) {
     throw std::invalid_argument(
@@ -375,8 +381,8 @@ void FastText::cbow(
     Model::State& state,
     real lr,
     const std::vector<int32_t>& line) {
-  std::vector<int32_t> bow;
-  std::uniform_int_distribution<> uniform(1, args_->ws);
+  std::vector<int32_t> bow; // all subwords from entry::subwords
+  std::uniform_int_distribution<> uniform(1, args_->ws); // window size
   for (int32_t w = 0; w < line.size(); w++) {
     int32_t boundary = uniform(state.rng);
     bow.clear();
@@ -649,6 +655,7 @@ void FastText::analogies(int32_t k) {
 }
 
 void FastText::trainThread(int32_t threadId) {
+  // move ptr to the sector corresponding to this thread
   std::ifstream ifs(args_->input);
   utils::seek(ifs, threadId * utils::size(ifs) / args_->thread);
 
@@ -657,14 +664,14 @@ void FastText::trainThread(int32_t threadId) {
   const int64_t ntokens = dict_->ntokens();
   int64_t localTokenCount = 0;
   std::vector<int32_t> line, labels;
-  while (tokenCount_ < args_->epoch * ntokens) {
+  while (tokenCount_ < args_->epoch * ntokens) { // tokenCount_ is shared by all threads
     real progress = real(tokenCount_) / (args_->epoch * ntokens);
-    real lr = args_->lr * (1.0 - progress);
+    real lr = args_->lr * (1.0 - progress); // linear-decayed learning rate, but keeps the same in a batch of lrUpdateRate
     if (args_->model == model_name::sup) {
       localTokenCount += dict_->getLine(ifs, line, labels);
       supervised(state, lr, line, labels);
     } else if (args_->model == model_name::cbow) {
-      localTokenCount += dict_->getLine(ifs, line, state.rng);
+      localTokenCount += dict_->getLine(ifs, line, state.rng); // get words with discarding hot-words
       cbow(state, lr, line);
     } else if (args_->model == model_name::sg) {
       localTokenCount += dict_->getLine(ifs, line, state.rng);
@@ -731,6 +738,9 @@ void FastText::loadVectors(const std::string& filename) {
   input_ = getInputMatrixFromFile(filename);
 }
 
+/**
+ * (# words + # ngram bucket) * dim
+ */
 std::shared_ptr<Matrix> FastText::createRandomMatrix() const {
   std::shared_ptr<DenseMatrix> input = std::make_shared<DenseMatrix>(
       dict_->nwords() + args_->bucket, args_->dim);
@@ -739,6 +749,9 @@ std::shared_ptr<Matrix> FastText::createRandomMatrix() const {
   return input;
 }
 
+/**
+ * (# labels if sup, # words if cbow or skipgram) * dim
+ */
 std::shared_ptr<Matrix> FastText::createTrainOutputMatrix() const {
   int64_t m =
       (args_->model == model_name::sup) ? dict_->nlabels() : dict_->nwords();

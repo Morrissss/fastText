@@ -28,7 +28,7 @@ struct entry {
   std::string word;
   int64_t count;
   entry_type type;
-  std::vector<int32_t> subwords;
+  std::vector<int32_t> subwords; // indices of Dictionary::words_
 };
 
 class Dictionary {
@@ -45,17 +45,21 @@ class Dictionary {
   void addSubwords(std::vector<int32_t>&, const std::string&, int32_t) const;
 
   std::shared_ptr<Args> args_;
+
+  // word -> int & int -> word
   std::vector<int32_t> word2int_;
   std::vector<entry> words_;
 
-  std::vector<real> pdiscard_;
-  int32_t size_;
+  std::vector<real> pdiscard_; // some statics about \frac{word freqence}{ntokens_}
+  // size_ = nwords_ + nlabels_
+  int32_t size_; // number excluding duplicates after removing long-tail words
   int32_t nwords_;
   int32_t nlabels_;
-  int64_t ntokens_;
+
+  int64_t ntokens_; // including duplicates
 
   int64_t pruneidx_size_;
-  std::unordered_map<int32_t, int32_t> pruneidx_;
+  std::unordered_map<int32_t, int32_t> pruneidx_; // indices of ngrams
   void addWordNgrams(
       std::vector<int32_t>& line,
       const std::vector<int32_t>& hashes,

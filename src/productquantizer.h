@@ -30,8 +30,8 @@ class ProductQuantizer {
   const real eps_ = 1e-7;
 
   int32_t dim_;
-  int32_t nsubq_;
-  int32_t dsub_;
+  int32_t nsubq_; // number of quantization
+  int32_t dsub_; // number of bits
   int32_t lastdsub_;
 
   std::vector<real> centroids_;

@@ -70,6 +70,9 @@ class BinaryLogisticLoss : public Loss {
   void computeOutput(Model::State& state) const override;
 };
 
+/**
+ * sum of loss of all binary classifiers
+ */
 class OneVsAllLoss : public BinaryLogisticLoss {
  public:
   explicit OneVsAllLoss(std::shared_ptr<Matrix>& wo);
@@ -82,6 +85,9 @@ class OneVsAllLoss : public BinaryLogisticLoss {
       bool backprop) override;
 };
 
+/**
+ * sample neg_ words different from target, according to a uniform distribution weighted by sqrt(word frequence)
+ */
 class NegativeSamplingLoss : public BinaryLogisticLoss {
  protected:
   static const int32_t NEGATIVE_TABLE_SIZE = 10000000;
@@ -106,6 +112,9 @@ class NegativeSamplingLoss : public BinaryLogisticLoss {
       bool backprop) override;
 };
 
+/**
+ * softmax with hoffman tree
+ */
 class HierarchicalSoftmaxLoss : public BinaryLogisticLoss {
  protected:
   struct Node {

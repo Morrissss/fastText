@@ -53,9 +53,12 @@ real* ProductQuantizer::get_centroids(int32_t m, uint8_t i) {
   return &centroids_[(m * ksub_ + i) * dsub_];
 }
 
+/**
+ * get nearest centroid, assign to code, and return the distance
+ */
 real ProductQuantizer::assign_centroid(
     const real* x,
-    const real* c0,
+    const real* c0, // centroids
     uint8_t* code,
     int32_t d) const {
   const real* c = c0;

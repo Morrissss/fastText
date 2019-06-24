@@ -39,7 +39,7 @@ class Args {
   int wordNgrams;
   loss_name loss;
   model_name model;
-  int bucket;
+  int bucket; // # buckets for ngrams
   int minn;
   int maxn;
   int thread;

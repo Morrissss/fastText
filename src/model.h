@@ -22,6 +22,7 @@ namespace fasttext {
 
 class Loss;
 
+// singleton
 class Model {
  protected:
   std::shared_ptr<Matrix> wi_;
@@ -40,13 +41,14 @@ class Model {
   Model& operator=(const Model& other) = delete;
   Model& operator=(Model&& other) = delete;
 
+  // one for each thread
   class State {
    private:
     real lossValue_;
     int64_t nexamples_;
 
    public:
-    Vector hidden;
+    Vector hidden; // dim
     Vector output;
     Vector grad;
     std::minstd_rand rng;

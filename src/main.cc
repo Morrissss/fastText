@@ -202,6 +202,9 @@ void printPredictions(
   }
 }
 
+/**
+ * predict best K words according to the input context
+ */
 void predict(const std::vector<std::string>& args) {
   if (args.size() < 4 || args.size() > 6) {
     printPredictUsage();
